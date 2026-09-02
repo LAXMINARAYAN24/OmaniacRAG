@@ -1,0 +1,21 @@
+{
+  "name": "local-ai-assistant",
+  "private": true,
+  "version": "1.0.1",
+  "workspaces": [
+    "apps/web",
+    "apps/server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @local-ai/server\" \"npm run dev -w @local-ai/web\"",
+    "build": "npm run build -w @local-ai/web && npm run build -w @local-ai/server",
+    "start": "npm run start -w @local-ai/server"
+  },
+  "devDependencies": {
+    "concurrently": "9.1.2"
+  },
+  "dependencies": {
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0"
+  }
+}

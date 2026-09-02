@@ -1,0 +1,2 @@
+import{OllamaProvider}from"./ollama.js";import{HuggingFaceProvider}from"./huggingface.js";import type{LLMProvider}from"../types.js";
+export function getProvider(name:string):LLMProvider{if(name==="huggingface")return new HuggingFaceProvider();return new OllamaProvider(process.env.OLLAMA_URL||"http://localhost:11434");}
