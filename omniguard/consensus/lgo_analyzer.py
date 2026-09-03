@@ -34,6 +34,20 @@ class GWCCDecision:
     explanation: str = ""
     group_telemetry: Dict[str, Any] = field(default_factory=dict)
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Returns a JSON-serializable dictionary representation of the GWCC decision."""
+        return {
+            "status": self.status.value if hasattr(self.status, "value") else str(self.status),
+            "confidence_score": round(float(self.confidence_score), 4),
+            "selected_cluster_id": self.selected_cluster_id,
+            "lgo_delta": round(float(self.lgo_delta), 4),
+            "counterfactual_deltas": {int(k): round(float(v), 4) for k, v in self.counterfactual_deltas.items()},
+            "explanation": self.explanation,
+            "selected_chunk_ids": [c.chunk_id for c in self.selected_chunks],
+            "quarantined_chunk_ids": [c.chunk_id for c in self.quarantined_chunks],
+            "group_telemetry": self.group_telemetry
+        }
+
 
 class LGOConsensusAnalyzer:
     """

@@ -158,9 +158,30 @@ class PipelineExecutionResult:
                 ],
                 "telemetry": self.cov_result.telemetry
             } if self.cov_result else None,
-            "ring_telemetry": self.ring_telemetry,
+            "ring_telemetry": self._serialize_ring_telemetry(),
             "trace": self.trace
         }
+
+    def _serialize_ring_telemetry(self) -> Dict[str, Any]:
+        clean = dict(self.ring_telemetry)
+        if "ring_3_gwcc" in clean and clean["ring_3_gwcc"]:
+            gwcc = clean["ring_3_gwcc"]
+            if hasattr(gwcc, "to_dict"):
+                clean["ring_3_gwcc"] = gwcc.to_dict()
+            elif isinstance(gwcc, dict):
+                d = dict(gwcc)
+                if "selected_chunks" in d:
+                    d["selected_chunk_ids"] = [
+                        c.chunk_id if hasattr(c, "chunk_id") else str(c)
+                        for c in d.pop("selected_chunks")
+                    ]
+                if "quarantined_chunks" in d:
+                    d["quarantined_chunk_ids"] = [
+                        c.chunk_id if hasattr(c, "chunk_id") else str(c)
+                        for c in d.pop("quarantined_chunks")
+                    ]
+                clean["ring_3_gwcc"] = d
+        return clean
 
 
 class OmniGuardProductionPipeline:
@@ -429,7 +450,7 @@ class OmniGuardProductionPipeline:
                     "ring_0": q_report,
                     "ring_1_drs": drs_report.__dict__,
                     "ring_2_risk": risk_report,
-                    "ring_3_gwcc": consensus_decision.__dict__ if consensus_decision else None
+                    "ring_3_gwcc": consensus_decision.to_dict() if consensus_decision else None
                 },
                 trace=trace_data
             )
@@ -476,7 +497,8 @@ class OmniGuardProductionPipeline:
         post_decision = self.abstention_engine.evaluate_post_generation(
             generated_text=final_response,
             citation_audit=citation_audit,
-            allowed_chunks=verified_chunks
+            allowed_chunks=verified_chunks,
+            cov_result=cov_res
         )
         span_gen.finish(
             generation_state=post_decision.state,
@@ -507,7 +529,7 @@ class OmniGuardProductionPipeline:
                 "ring_0": q_report,
                 "ring_1_drs": drs_report.__dict__,
                 "ring_2_risk": risk_report,
-                "ring_3_gwcc": consensus_decision.__dict__ if consensus_decision else None
+                "ring_3_gwcc": consensus_decision.to_dict() if consensus_decision else None
             },
             trace=trace_data
         )

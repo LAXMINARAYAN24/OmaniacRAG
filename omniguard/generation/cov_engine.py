@@ -123,17 +123,10 @@ class ChainOfVerificationEngine:
         supported_checks = [c for c in checks if c.is_supported]
         unsupported_count = len(checks) - len(supported_checks)
 
-        if not supported_checks and primary_chunks:
-            # If baseline had no supported claims, construct direct grounded answer from top verified chunk
-            top_chunk = primary_chunks[0]
-            title = top_chunk.metadata.title or top_chunk.doc_id
-            h_short = top_chunk.content_hash[:8]
-            revised_response = (
-                f"According to verified records, {top_chunk.clean_text} "
-                f"[Doc: {title} | Chunk: {top_chunk.chunk_index} | Hash: {h_short}]"
-            )
-        elif not supported_checks and not primary_chunks:
-            revised_response = "Information not available in provided sources."
+        if not supported_checks:
+            # When none of the generated claims are supported by verified evidence,
+            # do not force-inject an unrelated chunk. Express insufficient evidence.
+            revised_response = "The provided evidence does not contain information to answer this query."
         else:
             chunk_lookup = {c.chunk_id: c for c in corroboration_pool}
             active_generator = llm_generate_fn or self.llm_generate_fn

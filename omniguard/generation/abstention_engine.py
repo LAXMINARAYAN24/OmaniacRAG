@@ -95,8 +95,26 @@ class CalibratedAbstentionEngine:
     def evaluate_post_generation(self,
                                  generated_text: str,
                                  citation_audit: CitationAuditReport,
-                                 allowed_chunks: List[ProductionChunk]) -> AbstentionDecision:
-        """Validates generated text against citation and grounding constraints."""
+                                 allowed_chunks: List[ProductionChunk],
+                                 cov_result: Optional[Any] = None) -> AbstentionDecision:
+        """Validates generated text against citation, grounding, and CoV verification constraints."""
+        # 1. Text-level negative declaration check
+        lower_text = generated_text.strip().lower()
+        if (
+            "information not available" in lower_text
+            or "does not contain information" in lower_text
+            or "does not establish" in lower_text
+            or "insufficient evidence" in lower_text
+        ):
+            return AbstentionDecision(
+                state=GenerationState.INSUFFICIENT_EVIDENCE,
+                final_output=generated_text,
+                confidence=0.05,
+                reason="Response indicates requested information is not available in verified evidence.",
+                can_proceed_to_generate=False
+            )
+
+        # 2. Fabricated / only invalid citations
         if citation_audit.invalid_citations > 0 and citation_audit.valid_citations == 0:
             return AbstentionDecision(
                 state=GenerationState.INSUFFICIENT_EVIDENCE,
@@ -106,13 +124,28 @@ class CalibratedAbstentionEngine:
                 can_proceed_to_generate=False
             )
 
-        if citation_audit.grounding_ratio < self.min_grounding_ratio:
-            calibrated_confidence = max(0.65, round(0.50 + 0.40 * citation_audit.grounding_ratio, 4))
+        # 3. CoV verification check: if CoV ran and 0 claims were supported by evidence
+        if cov_result is not None and getattr(cov_result, "verification_checks", None):
+            checks = cov_result.verification_checks
+            supported_count = sum(1 for c in checks if getattr(c, "is_supported", False))
+            if supported_count == 0 and len(checks) > 0:
+                return AbstentionDecision(
+                    state=GenerationState.INSUFFICIENT_EVIDENCE,
+                    final_output="The provided evidence does not contain information to answer this query.",
+                    confidence=0.05,
+                    reason="All extracted answer claims were unsupported by verified evidence (CoV grounding score = 0.0).",
+                    can_proceed_to_generate=False
+                )
+
+        # 4. Partial answer evaluation
+        cov_grounding = getattr(cov_result, "grounding_score", 1.0) if cov_result is not None else 1.0
+        if citation_audit.grounding_ratio < self.min_grounding_ratio or cov_grounding < 1.0:
+            calibrated_confidence = max(0.65, round(0.50 + 0.40 * min(citation_audit.grounding_ratio, cov_grounding), 4))
             return AbstentionDecision(
                 state=GenerationState.PARTIAL_ANSWER,
                 final_output=generated_text,
                 confidence=calibrated_confidence,
-                reason=f"Partial answer: grounding ratio ({citation_audit.grounding_ratio:.2f}) below threshold.",
+                reason=f"Partial answer: grounding ratio ({citation_audit.grounding_ratio:.2f}) or CoV score ({cov_grounding:.2f}) below threshold.",
                 can_proceed_to_generate=True
             )
 
