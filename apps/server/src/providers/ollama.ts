@@ -16,20 +16,6 @@ export class OllamaProvider implements LLMProvider {
   constructor(private baseUrl: string) {}
 
   async chat(message: string, history: ChatMessage[], model: string) {
-    // TEMP RUNTIME AUDIT — REMOVE AFTER VERIFICATION
-    console.log('=== RUNTIME AUDIT START ===');
-    console.log({
-      timestamp: new Date().toISOString(),
-      endpoint: `${this.baseUrl}/api/chat`,
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...history,
-        { role: "user", content: message }
-      ],
-      // include any generation options present (none are added by default)
-    });
-    console.log('=== RUNTIME AUDIT END ===');
     const r = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -59,20 +45,6 @@ export class OllamaProvider implements LLMProvider {
     model: string,
     onToken: (token: string) => void
   ) {
-    // TEMP RUNTIME AUDIT — REMOVE AFTER VERIFICATION
-    console.log('=== RUNTIME AUDIT START (STREAM) ===');
-    console.log({
-      timestamp: new Date().toISOString(),
-      endpoint: `${this.baseUrl}/api/chat`,
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...history,
-        { role: "user", content: message }
-      ],
-      stream: true
-    });
-    console.log('=== RUNTIME AUDIT END (STREAM) ===');
     const r = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
